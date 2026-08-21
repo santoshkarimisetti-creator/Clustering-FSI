@@ -1,72 +1,83 @@
 # Indic Handwritten Character Recognition & Clustering Benchmark
 
-A machine learning pipeline evaluating supervised classification (**K-Nearest Neighbors**) and unsupervised clustering (**K-Means**) on Indic script handwritten character datasets (**Devanagari** and **Gujarati**) reduced via **Principal Component Analysis (PCA)**.
+A modular, high-performance machine learning framework evaluating supervised classification (**K-Nearest Neighbors**) and unsupervised clustering (**K-Means**, **Gaussian Mixture Models (GMM)**, **Agglomerative Clustering**) on Indic script handwritten character datasets (**Devanagari** and **Gujarati**) using **Histogram of Oriented Gradients (HOG)** and **Principal Component Analysis (PCA)**.
 
 ---
 
 ## 📌 Project Overview
 
-This repository provides reproducible benchmarks for handwritten Indic character recognition and clustering. Processing complex Indic scripts requires robust preprocessing, feature extraction, and dimensionality reduction.
+Processing complex Indic scripts requires robust preprocessing, feature extraction, and dimensionality reduction. This repository provides reproducible, leak-free machine learning benchmarks for two prominent Indic scripts:
 
-The project evaluates two distinct Indic scripts:
 1. **Devanagari Script** (dataset: [`rishianand/devanagari-character-set`](https://www.kaggle.com/datasets/rishianand/devanagari-character-set))
 2. **Gujarati Script** (dataset: [`meet1265/gujarati-handwritten-characters-dataset`](https://www.kaggle.com/datasets/meet1265/gujarati-handwritten-characters-dataset))
 
-Each pipeline performs automated dataset retrieval, background polarity normalization, data-leak-free train/test splitting, dynamic PCA component selection, hyperparameter tuning via cross-validation, supervised classification, and unsupervised cluster quality evaluation.
+Each pipeline executes automated dataset retrieval, **Otsu's adaptive binarization**, multi-threaded parallel image loading, **HOG stroke-direction feature extraction**, data-leak-free train/test splitting, dynamic PCA component selection, hyperparameter tuning via cross-validation, multi-algorithm clustering, and **t-SNE non-linear manifold visualizations**.
 
 ---
 
-## 🛠️ Pipeline Architecture
+## 🛠️ Modular Pipeline Architecture
 
 ```
-     [ Kaggle Dataset via kagglehub ]
-                    │
-                    ▼
-     [ Preprocessing & Normalization ]
-    • Resizing to 32x32 grayscale
-    • Stroke polarity correction (Background ~0, Ink ~1)
-    • Class imbalance filtering (min samples/class = 15)
-                    │
-                    ▼
-       [ 80/20 Stratified Split ]
-         (Prevents Data Leakage)
-                    │
-           ┌────────┴────────┐
-           ▼                 ▼
-   [ Standard Scaler ]   [ Standard Scaler ]
-   (Fit on Train)        (Transform Test)
-           │                 │
-           ▼                 ▼
-     [ PCA Fit ]       [ PCA Transform ]
-   (Target: 95% Var)     (Projected)
-           │                 │
-     ┌─────┴────────┐        │
-     ▼              ▼        ▼
-[ Supervised ]  [ Unsupervised ]
-  KNN + CV        K-Means (k=n_classes)
-  (GridSearch)    (Silhouette, ARI, NMI)
+                 [ Kaggle Dataset via kagglehub ]
+                                │
+                                ▼
+           [ Multi-Threaded Parallel Data Loading ]
+            (ThreadPoolExecutor + Dataset Caching)
+                                │
+                                ▼
+              [ Image Preprocessing & Segmentation ]
+             • Resizing to 32x32 grayscale
+             • Otsu Adaptive Thresholding (cv2.THRESH_OTSU)
+             • Stroke polarity normalization (Background ~0, Ink ~1)
+             • Class imbalance filtering (min samples/class = 15)
+                                │
+                                ▼
+           [ Feature Extraction: HOG / Raw Pixels ]
+            • Histogram of Oriented Gradients (skimage.feature.hog)
+                                │
+                                ▼
+                   [ 80/20 Stratified Split ]
+                     (Prevents Data Leakage)
+                                │
+                       ┌────────┴────────┐
+                       ▼                 ▼
+               [ Standard Scaler ]   [ Standard Scaler ]
+               (Fit on Train)        (Transform Test)
+                       │                 │
+                       ▼                 ▼
+                 [ PCA Fit ]       [ PCA Transform ]
+               (Target: 95% Var)     (Projected)
+                       │                 │
+                 ┌─────┴────────┐        │
+                 ▼              ▼        ▼
+            [ Supervised ]  [ Unsupervised Benchmarks ]
+              KNN + CV        • K-Means Clustering
+              (GridSearch)    • Gaussian Mixture Models (GMM)
+                              • Agglomerative Hierarchical
+                                │
+                                ▼
+                     [ Visual Manifold Projections ]
+                      • 2D PCA Linear Scatter Plots
+                      • 2D t-SNE Non-Linear Projections
 ```
 
 ---
 
-## ✨ Key Features
+## ✨ Key Features & Technical Highlights
 
-- **Automated Data Retrieval**: Integrates `kagglehub` to directly download and manage Kaggle datasets.
-- **Polarity-Aware Preprocessing**: Automatically detects dark vs. light backgrounds and aligns image polarities so stroke pixels consistently evaluate as high intensity ($\sim 1.0$) and background pixels as zero ($\sim 0.0$).
-- **Strict Leakage Prevention**: Scaling and PCA transformation matrices are fitted strictly on training splits before transforming test splits.
+- **Modular Architecture**: Centralized core engine in [`indic_pipeline.py`](file:///d:/Projects/Clustering/indic_pipeline.py) powering clean entry points [`Devanagari.py`](file:///d:/Projects/Clustering/Devanagari.py) and [`Gujarathi.py`](file:///d:/Projects/Clustering/Gujarathi.py).
+- **High-Speed Parallel Preprocessing**: Multi-threaded image reading via `ThreadPoolExecutor` and automatic disk caching with `joblib`.
+- **Otsu Adaptive Binarization**: Replaces simple intensity thresholding with `cv2.THRESH_OTSU` to segment handwritten strokes clean from background noise and lighting variations.
+- **HOG Feature Extraction**: Extracts **Histogram of Oriented Gradients** features (`skimage.feature.hog`) to represent character stroke orientations and edge shapes.
+- **Data-Leak-Free Pipeline**: Scaling and PCA transformation matrices are fitted strictly on training splits before transforming test splits.
 - **Adaptive PCA Dimensionality Reduction**: Dynamically selects the minimum number of principal components needed to capture **95% cumulative variance** (capped at 150 components).
-- **Hyperparameter-Tuned KNN**: Employs `GridSearchCV` with `StratifiedKFold` cross-validation to search optimal neighbor counts ($k$) and distance weighting mechanisms (`uniform` vs. `distance`).
-- **Cluster Diagnostics & Evaluation**: Evaluates K-Means clustering using intrinsic metric sweeps (Elbow method inertia & Silhouette score) alongside ground-truth metrics:
-  - **Silhouette Score** (cluster compactness and separation)
-  - **Adjusted Rand Index (ARI)** (similarity to true class assignments)
-  - **Normalized Mutual Information (NMI)** (mutual information shared with true labels)
-- **Rich Visual Diagnostics**:
-  - Sample character grid displaying normalized characters
-  - PCA Cumulative Explained Variance scree plot
-  - 2D PCA scatter projection of true labels
-  - Row-normalized confusion matrices for classification analysis
-  - K-Means Elbow & Silhouette score curves
-  - 2D PCA cluster distribution with mapped cluster centroids
+- **GridSearch Hyperparameter-Tuned KNN**: Searches optimal neighbor counts ($k$) and distance weighting mechanisms (`uniform` vs. `distance`) using `StratifiedKFold` cross-validation.
+- **Multi-Algorithm Clustering Benchmark**: Evaluates three distinct clustering algorithms:
+  - **K-Means Clustering**
+  - **Gaussian Mixture Models (GMM)**
+  - **Agglomerative Hierarchical Clustering**
+  Evaluating intrinsic Silhouette scores, **Adjusted Rand Index (ARI)**, and **Normalized Mutual Information (NMI)** against true character labels.
+- **Non-Linear Manifold Visualizations**: Renders side-by-side **2D PCA** linear projections and **2D t-SNE** manifold visual clusters.
 
 ---
 
@@ -77,14 +88,12 @@ Each pipeline performs automated dataset retrieval, background polarity normaliz
 Ensure Python 3.8+ is installed along with the required libraries:
 
 ```bash
-pip install numpy matplotlib pillow scikit-learn kagglehub
+pip install numpy matplotlib pillow scikit-learn scikit-image opencv-python joblib kagglehub
 ```
-
-> **Note**: `kagglehub` requires standard Kaggle API authentication credentials (`kaggle.json` or standard environment variables) if accessing restricted datasets.
 
 ### Running the Pipelines
 
-Run the scripts directly from the terminal:
+Execute the benchmark scripts directly:
 
 **1. Devanagari Character Recognition & Clustering Pipeline:**
 ```bash
@@ -102,21 +111,22 @@ python Gujarathi.py
 
 ```
 .
-├── Devanagari.py   # Full pipeline for Devanagari character recognition & clustering
-├── Gujarathi.py    # Full pipeline for Gujarati character recognition & clustering
-└── README.md       # Comprehensive project documentation
+├── indic_pipeline.py # Shared core engine (Data loading, HOG, PCA, KNN, Clustering, t-SNE)
+├── Devanagari.py     # Devanagari script benchmark runner
+├── Gujarathi.py      # Gujarati script benchmark runner
+└── README.md         # Project documentation & benchmark overview
 ```
 
 ---
 
-## 📊 Evaluation & Metrics
+## 📊 Evaluation & Metrics Summary
 
-The scripts output performance summaries across supervised and unsupervised paradigms:
-
-| Evaluation Paradigm | Model | Primary Metrics Evaluated |
+| Evaluation Paradigm | Model / Method | Metrics Evaluated |
 | :--- | :--- | :--- |
-| **Supervised** | **KNN** | Accuracy, Precision, Recall, F1-Score, Normalized Confusion Matrix |
-| **Unsupervised** | **K-Means** | Silhouette Score, Adjusted Rand Index (ARI), Normalized Mutual Info (NMI), Inertia |
+| **Feature Extraction** | **HOG vs. Raw Pixels** | Gradient Orientations ($4 \times 4$ cells, $2 \times 2$ blocks) |
+| **Supervised Learning** | **KNN + GridSearch** | Accuracy, Precision, Recall, F1-Score, Normalized Confusion Matrix |
+| **Unsupervised Learning** | **K-Means, GMM, Agglomerative** | Silhouette Score, Adjusted Rand Index (ARI), Normalized Mutual Info (NMI) |
+| **Manifold Projection** | **PCA & t-SNE** | 2D Linear Projection vs. Non-linear Perplexity Manifolds |
 
 ---
 
