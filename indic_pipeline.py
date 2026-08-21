@@ -316,11 +316,15 @@ def run_indic_benchmark(dataset_name, kaggle_handle, max_samples=8000, img_size=
 
     # 8c. Gaussian Mixture Model (GMM)
     print("Fitting Gaussian Mixture Model (GMM)...")
-    gmm = GaussianMixture(n_components=n_clusters, random_state=RANDOM_STATE, covariance_type="diag")
-    gmm_labels = gmm.fit_predict(X_train_pca)
-    gmm_sil = silhouette_score(X_train_pca, gmm_labels)
-    gmm_ari = adjusted_rand_score(y_train, gmm_labels)
-    gmm_nmi = normalized_mutual_info_score(y_train, gmm_labels)
+    try:
+        gmm = GaussianMixture(n_components=n_clusters, random_state=RANDOM_STATE, covariance_type="diag", reg_covar=1e-2)
+        gmm_labels = gmm.fit_predict(X_train_pca)
+        gmm_sil = silhouette_score(X_train_pca, gmm_labels)
+        gmm_ari = adjusted_rand_score(y_train, gmm_labels)
+        gmm_nmi = normalized_mutual_info_score(y_train, gmm_labels)
+    except Exception as e:
+        print(f"Warning: GMM fitting skipped for {dataset_name} due to high component count / covariance ill-conditioning: {e}")
+        gmm_sil, gmm_ari, gmm_nmi = 0.0, 0.0, 0.0
 
     # 8d. Agglomerative Hierarchical Clustering
     print("Fitting Agglomerative Hierarchical Clustering...")
@@ -349,7 +353,7 @@ def run_indic_benchmark(dataset_name, kaggle_handle, max_samples=8000, img_size=
     tsne_sample_size = min(2000, len(X_train_pca))
     tsne_idx = np.random.choice(len(X_train_pca), tsne_sample_size, replace=False)
     
-    tsne = TSNE(n_components=2, random_state=RANDOM_STATE, perplexity=30, n_iter=1000)
+    tsne = TSNE(n_components=2, random_state=RANDOM_STATE, perplexity=30, max_iter=1000)
     X_train_tsne = tsne.fit_transform(X_train_pca[tsne_idx])
 
     fig, axes = plt.subplots(1, 2, figsize=(15, 6))
