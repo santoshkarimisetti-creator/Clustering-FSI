@@ -1,7 +1,3 @@
-# ============================================================
-# Indic Handwritten Character Recognition & Clustering Pipeline
-# Shared Modular Engine for Devanagari & Gujarati Datasets
-# ============================================================
 import os
 import glob
 import time
@@ -60,9 +56,9 @@ def load_single_image(fp, img_size=32):
             # Fallback to PIL if OpenCV read fails
             pil_img = Image.open(fp).convert("L")
             img = np.array(pil_img)
-            
+
         img = cv2.resize(img, (img_size, img_size), interpolation=cv2.INTER_AREA)
-        
+
         # Otsu thresholding for sharp binarization invariant to lighting/scan contrast
         _, thresh = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         arr = thresh.astype(np.float32) / 255.0
@@ -70,7 +66,7 @@ def load_single_image(fp, img_size=32):
         # Standardize stroke polarity (Background ~0, Ink strokes ~1)
         if arr.mean() > 0.5:
             arr = 1.0 - arr
-            
+
         return arr
     except Exception:
         return None
@@ -134,7 +130,7 @@ def load_dataset_parallel(dataset_name, kaggle_handle, max_samples=8000, img_siz
 
     print(f"Loading and preprocessing {len(all_files)} images using multi-threading...")
     t0 = time.time()
-    
+
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(load_single_image, fp, img_size) for fp in all_files]
         loaded_images = [f.result() for f in futures]
@@ -171,7 +167,7 @@ def load_dataset_parallel(dataset_name, kaggle_handle, max_samples=8000, img_siz
 def run_indic_benchmark(dataset_name, kaggle_handle, max_samples=8000, img_size=32, min_per_class=15, feature_type="hog"):
     """
     Main benchmark pipeline runner for Indic script character analysis.
-    
+
     feature_type: 'raw' (raw pixels) or 'hog' (Histogram of Oriented Gradients)
     """
     print(f"\n============================================================")
@@ -220,7 +216,7 @@ def run_indic_benchmark(dataset_name, kaggle_handle, max_samples=8000, img_size=
     # 6. PCA Component Selection (95% Cumulative Variance Target)
     variance_target = 0.95
     max_components_cap = min(150, X_train_scaled.shape[0] - 1, X_train_scaled.shape[1])
-    
+
     pca_probe = PCA(n_components=max_components_cap, svd_solver="randomized", random_state=RANDOM_STATE)
     pca_probe.fit(X_train_scaled)
     cum_var = np.cumsum(pca_probe.explained_variance_ratio_)
@@ -352,7 +348,7 @@ def run_indic_benchmark(dataset_name, kaggle_handle, max_samples=8000, img_size=
     # Subsample for fast t-SNE plot if train set is large
     tsne_sample_size = min(2000, len(X_train_pca))
     tsne_idx = np.random.choice(len(X_train_pca), tsne_sample_size, replace=False)
-    
+
     tsne = TSNE(n_components=2, random_state=RANDOM_STATE, perplexity=30, max_iter=1000)
     X_train_tsne = tsne.fit_transform(X_train_pca[tsne_idx])
 
@@ -374,3 +370,5 @@ def run_indic_benchmark(dataset_name, kaggle_handle, max_samples=8000, img_size=
     plt.show()
 
     print(f"Benchmark completed for {dataset_name}.\n")
+
+    return best_knn, X_test_pca, y_test, y_pred, class_names

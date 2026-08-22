@@ -5,7 +5,7 @@
 from indic_pipeline import run_indic_benchmark
 
 if __name__ == "__main__":
-    run_indic_benchmark(
+    gujarati_model, gujarati_X_test_pca, gujarati_y_test, gujarati_y_pred, gujarati_class_names = run_indic_benchmark(
         dataset_name="Gujarati",
         kaggle_handle="meet1265/gujarati-handwritten-characters-dataset",
         max_samples=6000,

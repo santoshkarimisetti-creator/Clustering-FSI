@@ -5,7 +5,7 @@
 from indic_pipeline import run_indic_benchmark
 
 if __name__ == "__main__":
-    run_indic_benchmark(
+    devanagari_model, devanagari_X_test_pca, devanagari_y_test, devanagari_y_pred, devanagari_class_names = run_indic_benchmark(
         dataset_name="Devanagari",
         kaggle_handle="rishianand/devanagari-character-set",
         max_samples=8000,
